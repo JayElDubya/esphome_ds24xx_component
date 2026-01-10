@@ -18,6 +18,7 @@ DS24xxOutput = ds24xx_ns.class_('DS24xxOutput', output_ns.BinaryOutput)
 DS24xxBinarySensor = ds24xx_ns.class_('DS24xxBinarySensor', binary_sensor_ns.BinarySensor)
 
 CONF_ONE_WIRE_PIN = 'one_wire_pin'
+CONF_ONE_WIRE = 'one_wire'
 CONF_INVERTED = 'inverted'
 CONF_OUTPUTS = 'outputs'
 CONF_BINARY_SENSORS = 'binary_sensors'
