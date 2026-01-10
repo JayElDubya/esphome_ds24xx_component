@@ -1,0 +1,7 @@
+{
+  "domain": "ds24xx",
+  "name": "ds24xx",
+  "documentation": "https://github.com/JayElDubya/esphome_ds24xx_component",
+  "requirements": [],
+  "codeowners": ["@JayElDubya"]
+}

@@ -1,0 +1,60 @@
+```python
+import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.components import output as output_ns
+from esphome.components import binary_sensor as binary_sensor_ns
+from esphome.const import CONF_ID
+
+AUTO_LOAD = ["output", "binary_sensor"]
+
+ds24xx_ns = cg.esphome_ns.namespace('ds24xx')
+DS24xxComponent = ds24xx_ns.class_('DS24xxComponent', cg.Component)
+DS24xxOutput = ds24xx_ns.class_('DS24xxOutput', output_ns.BinaryOutput)
+DS24xxBinarySensor = ds24xx_ns.class_('DS24xxBinarySensor', binary_sensor_ns.BinarySensor)
+
+CONF_ONE_WIRE_PIN = 'one_wire_pin'
+CONF_INVERTED = 'inverted'
+CONF_OUTPUTS = 'outputs'
+CONF_BINARY_SENSORS = 'binary_sensors'
+CONF_CHANNEL = 'channel'
+CONF_DEVICE_INDEX = 'device_index'
+
+OUTPUT_SCHEMA = cv.Schema({
+    cv.GenerateID(): cv.declare_id(DS24xxOutput),
+    cv.Required(CONF_CHANNEL): cv.int_,
+    cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
+})
+
+BINARY_SENSOR_SCHEMA = cv.Schema({
+    cv.GenerateID(): cv.declare_id(DS24xxBinarySensor),
+    cv.Required(CONF_CHANNEL): cv.int_,
+    cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
+})
+
+CONFIG_SCHEMA = cv.Schema({
+    cv.GenerateID(): cv.declare_id(DS24xxComponent),
+    cv.Required(CONF_ONE_WIRE_PIN): cv.int_,
+    cv.Optional(CONF_INVERTED, default=False): cv.boolean,
+    cv.Optional(CONF_OUTPUTS, default=[]): cv.ensure_list(OUTPUT_SCHEMA),
+    cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
+}).extend(cv.COMPONENT_SCHEMA)
+
+
+async def to_code(config):
+    # create main component
+    one_wire_pin = config[CONF_ONE_WIRE_PIN]
+    inverted = config[CONF_INVERTED]
+    comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
+    await cg.register_component(comp, config)
+
+    # create outputs
+    for o in config.get(CONF_OUTPUTS, []):
+        out = cg.new_Pvariable(o[CONF_ID], comp, o[CONF_CHANNEL], o[CONF_DEVICE_INDEX])
+        # register with ESPHome output subsystem
+        await output_ns.register_output(out, o)
+
+    # create binary sensors
+    for b in config.get(CONF_BINARY_SENSORS, []):
+        bs = cg.new_Pvariable(b[CONF_ID], comp, b[CONF_CHANNEL], b[CONF_DEVICE_INDEX])
+        await binary_sensor_ns.register_binary_sensor(bs, b)
+```

@@ -27,7 +27,7 @@ Example YAML (using lambdas as interim):
 If you want to upstream this to esphome:
 - Implement YAML schema and registration functions in C++ (no-lambda config).
 - Follow esphome contribution guidelines: include examples, tests, and docs.
-*/
+test*/
 
 #pragma once
 #include "esphome.h"
