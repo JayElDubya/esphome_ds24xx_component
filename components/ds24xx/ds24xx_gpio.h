@@ -4,19 +4,33 @@
 #include "esphome/components/output/binary_output.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/core/component.h"
-// Minimal OneWire stub inlined for build-time
+// Prefer the real OneWire library when available; otherwise provide a
+// minimal stub so the component can still be parsed at build-time.
+#if defined(__has_include)
+#  if __has_include(<OneWire.h>)
+#    include <OneWire.h>
+#  else
+#    define DS24XX_NO_ONEWIRE
+#  endif
+#else
+// conservative fallback: try to include and if not available define stub
+#  include <OneWire.h>
+#endif
+
+#if defined(DS24XX_NO_ONEWIRE)
 class OneWire {
  public:
 	explicit OneWire(uint8_t pin) {}
- 	void reset_search() {}
- 	bool search(uint8_t *addr) { return false; }
- 	void reset() {}
- 	void select(const uint8_t *addr) {}
- 	void write(uint8_t v) {}
- 	void write(uint8_t v, uint8_t power) { (void)power; }
- 	uint8_t read() { return 0; }
- 	static uint8_t crc8(const uint8_t *addr, uint8_t len) { (void)addr; return 0; }
+	void reset_search() {}
+	bool search(uint8_t *addr) { return false; }
+	void reset() {}
+	void select(const uint8_t *addr) {}
+	void write(uint8_t v) {}
+	void write(uint8_t v, uint8_t power) { (void)power; }
+	uint8_t read() { return 0; }
+	static uint8_t crc8(const uint8_t *addr, uint8_t len) { (void)addr; return 0; }
 };
+#endif
 #include <vector>
 #include <array>
 

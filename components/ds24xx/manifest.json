@@ -3,5 +3,6 @@
   "name": "ds24xx",
   "documentation": "https://github.com/JayElDubya/esphome_ds24xx_component",
   "requirements": [],
+  "platformio_dependencies": ["PaulStoffregen/OneWire@^2.3.6"],
   "codeowners": ["@JayElDubya"]
 }
