@@ -276,6 +276,7 @@ inline DS24xxOutput::DS24xxOutput(DS24xxComponent *parent, uint8_t channel, uint
 
 inline void DS24xxOutput::write_state(bool state) {
 	if (!parent_) return;
+	ESP_LOGD("ds24xx", "Output write request dev=%u ch=%u state=%u", (uint32_t)device_index_, (uint32_t)channel_, (uint32_t)state);
 	parent_->write_channel(channel_, state, device_index_);
 }
 
