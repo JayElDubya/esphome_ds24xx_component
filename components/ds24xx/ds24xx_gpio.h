@@ -201,23 +201,28 @@ class DS24xxComponent : public ::esphome::Component {
  		uint8_t fam = families_[device_index];
  		auto &addr = addresses_[device_index];
  		if (fam == FAMILY_DS2413) {
- 			uint8_t to_write = states_[device_index] & 0x03;
- 			if (inverted_) to_write ^= 0x03;
- 			uint8_t payload = to_write | 0xFC;
- 			oneWire_->reset();
- 			oneWire_->select(addr.data());
- 			oneWire_->write(DS2413_ACCESS_WRITE);
- 			oneWire_->write(payload);
- 			oneWire_->write(~payload);
- 			uint8_t ack = oneWire_->read();
- 			if (ack != DS2413_ACK_SUCCESS) {
- 				ESP_LOGW("ds24xx", "Write failed for device %u (ack: 0x%02X)", (uint32_t)device_index, ack);
- 				oneWire_->reset();
- 				return false;
- 			}
- 			oneWire_->read();
- 			oneWire_->reset();
- 			return true;
+			uint8_t to_write = states_[device_index] & 0x03;
+			if (inverted_) to_write ^= 0x03;
+			uint8_t payload = to_write | 0xFC;
+			ESP_LOGD("ds24xx", "DS2413 write dev=%u to_write=0x%02X payload=0x%02X", (uint32_t)device_index, to_write, payload);
+			oneWire_->reset();
+			oneWire_->select(addr.data());
+			oneWire_->write(DS2413_ACCESS_WRITE);
+			oneWire_->write(payload);
+			// write inverted payload with strong pull-up (some devices require strong pull-up)
+			oneWire_->write((uint8_t)(~payload), 1);
+			uint8_t ack = oneWire_->read();
+			ESP_LOGD("ds24xx", "DS2413 ack=0x%02X", ack);
+			if (ack != DS2413_ACK_SUCCESS) {
+				ESP_LOGW("ds24xx", "Write failed for device %u (ack: 0x%02X)", (uint32_t)device_index, ack);
+				oneWire_->reset();
+				return false;
+			}
+			// read trailing byte (if any) and reset bus
+			oneWire_->read();
+			oneWire_->reset();
+			ESP_LOGD("ds24xx", "DS2413 write successful dev=%u", (uint32_t)device_index);
+			return true;
  		} else if (fam == FAMILY_DS2408) {
  			uint8_t to_write = states_[device_index] & 0xFF;
  			if (inverted_) to_write = ~to_write;
