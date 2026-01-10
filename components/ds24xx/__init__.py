@@ -37,15 +37,25 @@ BINARY_SENSOR_SCHEMA = cv.Schema({
     cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
 })
 
-CONFIG_SCHEMA = cv.Schema({
+# Build schema fields dynamically so `one_wire` key is accepted even when
+# the onewire component is not present (we'll raise a clear error in to_code
+# if user supplies `one_wire` but the runtime ESPhome environment lacks it).
+schema_fields = {
     cv.GenerateID(): cv.declare_id(DS24xxComponent),
-    # `one_wire` optional only when ESPhome provides the onewire component
-    **({CONF_ONE_WIRE: cv.use_id(onewire_ns.OneWireBus)} if HAVE_ONEWIRE else {}),
     cv.Optional(CONF_ONE_WIRE_PIN): cv.int_,
     cv.Optional(CONF_INVERTED, default=False): cv.boolean,
     cv.Optional(CONF_OUTPUTS, default=[]): cv.ensure_list(OUTPUT_SCHEMA),
     cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
-}).extend(cv.COMPONENT_SCHEMA)
+}
+
+if HAVE_ONEWIRE:
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(onewire_ns.OneWireBus)
+else:
+    # accept the key syntactically so YAML validation won't fail; we'll error
+    # clearly during code generation if the user actually provided it.
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+
+CONFIG_SCHEMA = cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA)
 
 
 async def to_code(config):
