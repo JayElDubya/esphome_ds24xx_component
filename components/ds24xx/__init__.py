@@ -51,7 +51,12 @@ schema_fields = {
 # Always accept the `one_wire` key syntactically; validate at codegen time
 schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
 
-CONFIG_SCHEMA = cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA)
+def validate_onewire_presence(value):
+    if CONF_ONE_WIRE not in value and CONF_ONE_WIRE_PIN not in value:
+        raise cv.Invalid("ds24xx: either 'one_wire' or 'one_wire_pin' must be specified")
+    return value
+
+CONFIG_SCHEMA = cv.All(cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA), validate_onewire_presence)
 
 
 async def to_code(config):
