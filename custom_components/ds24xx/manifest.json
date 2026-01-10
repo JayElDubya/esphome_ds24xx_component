@@ -1,0 +1,7 @@
+{
+  "name": "ds24xx",
+  "version": "0.1.0",
+  "esphome_version": "^1.20.0",
+  "dependencies": [],
+  "codeowners": ["@your-github-handle"]
+}
