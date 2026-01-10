@@ -48,12 +48,8 @@ schema_fields = {
     cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
 }
 
-if HAVE_ONEWIRE:
-    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(onewire_ns.OneWireBus)
-else:
-    # accept the key syntactically so YAML validation won't fail; we'll error
-    # clearly during code generation if the user actually provided it.
-    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+# Always accept the `one_wire` key syntactically; validate at codegen time
+schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
 
 CONFIG_SCHEMA = cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA)
 
@@ -61,7 +57,9 @@ CONFIG_SCHEMA = cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA)
 async def to_code(config):
     # create main component, prefer shared one_wire bus when provided
     inverted = config[CONF_INVERTED]
-    if HAVE_ONEWIRE and CONF_ONE_WIRE in config:
+    if CONF_ONE_WIRE in config:
+        if not HAVE_ONEWIRE:
+            raise Exception("ds24xx: 'one_wire' specified but the esphome installation does not provide the onewire component")
         ow = await cg.get_variable(config[CONF_ONE_WIRE])
         comp = cg.new_Pvariable(config[CONF_ID], ow, inverted)
     else:
