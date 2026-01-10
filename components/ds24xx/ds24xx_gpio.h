@@ -1,4 +1,3 @@
-```cpp
 // Inlined DS24xx/DS2408 component header for external_component build
 #pragma once
 #include "esphome.h"
@@ -286,4 +285,3 @@ inline DS24xxOutput *ds24xx_register_output(DS24xxComponent *parent, uint8_t cha
 
 }  // namespace ds24xx
 
-```
