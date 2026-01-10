@@ -124,9 +124,10 @@ class DS24xxComponent : public ::esphome::Component {
  			ESP_LOGD("ds24xx", "Discovered device index %u family 0x%02X", (uint32_t)addresses_.size()-1, fam);
  		}
  		if (addresses_.empty()) {
- 			ESP_LOGW("ds24xx", "No supported devices found on the bus");
+			ESP_LOGW("ds24xx", "No supported devices found on the bus");
  			return;
  		}
+		ESP_LOGD("ds24xx", "Found %u supported device(s)", (uint32_t)addresses_.size());
  		// initialize state by reading each device
  		for (size_t i = 0; i < addresses_.size(); ++i) this->read_state_from_device(i);
  	}
@@ -153,7 +154,14 @@ class DS24xxComponent : public ::esphome::Component {
 
  	// write a single channel and push to device
  	bool write_channel(uint8_t channel, bool value, uint8_t device_index = 0) {
- 		if (device_index >= states_.size()) return false;
+		if (addresses_.empty()) {
+			ESP_LOGW("ds24xx", "Write ignored: no devices discovered on the bus");
+			return false;
+		}
+		if (device_index >= states_.size()) {
+			ESP_LOGW("ds24xx", "Write ignored: invalid device_index %u (have %u)", (uint32_t)device_index, (uint32_t)states_.size());
+			return false;
+		}
  		uint8_t fam = families_[device_index];
  		if (fam == FAMILY_DS2413) {
  			if (channel > 1) return false; // DS2413 only has 2 channels
