@@ -23,7 +23,7 @@ lights, or other output types.
 
 Usage (develop/test)
 1. Copy this folder into your ESPHome configuration directory as
-   `custom_components/ds24xx` or include the sources in your build tree.
+  `components/ds24xx` or include the sources in your build tree.
 2. Use the example YAML in `examples/fireplace_under.yaml` as a starting point or
    adapt it to your project. The lambda registers the component and a single
    output on channel 0.
@@ -70,7 +70,7 @@ Build
 esphome compile examples/fireplace_under.yaml
 ```
 
-or place the component under your ESPHome `custom_components/` directory and
+or place the component under your ESPHome `components/` directory and
 reference it from your normal ESPhome YAML.
 
 Contributing
