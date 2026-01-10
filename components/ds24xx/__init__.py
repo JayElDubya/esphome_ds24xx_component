@@ -2,6 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import output as output_ns
 from esphome.components import binary_sensor as binary_sensor_ns
+from esphome.components import onewire as onewire_ns
 from esphome.const import CONF_ID
 
 AUTO_LOAD = ["output", "binary_sensor"]
@@ -12,6 +13,7 @@ DS24xxOutput = ds24xx_ns.class_('DS24xxOutput', output_ns.BinaryOutput)
 DS24xxBinarySensor = ds24xx_ns.class_('DS24xxBinarySensor', binary_sensor_ns.BinarySensor)
 
 CONF_ONE_WIRE_PIN = 'one_wire_pin'
+CONF_ONE_WIRE = 'one_wire'
 CONF_INVERTED = 'inverted'
 CONF_OUTPUTS = 'outputs'
 CONF_BINARY_SENSORS = 'binary_sensors'
@@ -32,7 +34,8 @@ BINARY_SENSOR_SCHEMA = cv.Schema({
 
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(DS24xxComponent),
-    cv.Required(CONF_ONE_WIRE_PIN): cv.int_,
+    cv.Optional(CONF_ONE_WIRE): cv.use_id(onewire_ns.OneWireBus),
+    cv.Optional(CONF_ONE_WIRE_PIN): cv.int_,
     cv.Optional(CONF_INVERTED, default=False): cv.boolean,
     cv.Optional(CONF_OUTPUTS, default=[]): cv.ensure_list(OUTPUT_SCHEMA),
     cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
@@ -40,10 +43,14 @@ CONFIG_SCHEMA = cv.Schema({
 
 
 async def to_code(config):
-    # create main component
-    one_wire_pin = config[CONF_ONE_WIRE_PIN]
+    # create main component, prefer shared one_wire bus when provided
     inverted = config[CONF_INVERTED]
-    comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
+    if CONF_ONE_WIRE in config:
+        ow = await cg.get_variable(config[CONF_ONE_WIRE])
+        comp = cg.new_Pvariable(config[CONF_ID], ow, inverted)
+    else:
+        one_wire_pin = config[CONF_ONE_WIRE_PIN]
+        comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
     await cg.register_component(comp, config)
 
     # create outputs

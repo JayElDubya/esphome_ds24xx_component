@@ -33,6 +33,10 @@ class OneWire {
 #endif
 #include <vector>
 #include <array>
+// Include esphome one-wire bus when available so users can supply shared bus
+#if __has_include("esphome/components/onewire/onewire.h")
+#include "esphome/components/onewire/onewire.h"
+#endif
 
 // This is an example-named copy of the DS24xx component to make filenames clearer
 // (DS24xx 1-wire GPIO expanders). Use this file as the example reference for
@@ -96,10 +100,20 @@ class DS24xxBinarySensor : public ::esphome::binary_sensor::BinarySensor, public
 
 class DS24xxComponent : public ::esphome::Component {
  public:
-  explicit DS24xxComponent(uint8_t one_wire_pin, bool inverted = false)
-      : one_wire_pin_(one_wire_pin), inverted_(inverted) {
-    oneWire_ = new OneWire(one_wire_pin_);
-  }
+	explicit DS24xxComponent(uint8_t one_wire_pin, bool inverted = false)
+			: one_wire_pin_(one_wire_pin), inverted_(inverted) {
+		oneWire_ = new OneWire(one_wire_pin_);
+		bus_ = nullptr;
+	}
+
+	// Construct from a shared esphome one_wire bus
+	explicit DS24xxComponent(::esphome::onewire::OneWireBus *bus, bool inverted = false)
+			: one_wire_pin_(0xFF), inverted_(inverted), bus_(bus) {
+		if (bus_)
+			oneWire_ = bus_->get_onewire();
+		else
+			oneWire_ = nullptr;
+	}
 
  	void setup() override {
  		ESP_LOGD("ds24xx", "Searching for DS24xx devices on pin %u", this->one_wire_pin_);
@@ -179,6 +193,7 @@ class DS24xxComponent : public ::esphome::Component {
 
  private:
  	OneWire *oneWire_{nullptr};
+ 	::esphome::onewire::OneWireBus *bus_{nullptr};
  	uint8_t one_wire_pin_;
  	bool inverted_{false};
  	std::vector<std::array<uint8_t,8>> addresses_;
@@ -302,6 +317,12 @@ inline DS24xxComponent *ds24xx_register_component(uint8_t one_wire_pin, bool inv
 	auto *c = new DS24xxComponent(one_wire_pin, inverted);
 	::esphome::App.register_component(c);
 	return c;
+}
+
+inline DS24xxComponent *ds24xx_register_component(::esphome::onewire::OneWireBus *bus, bool inverted = false) {
+    auto *c = new DS24xxComponent(bus, inverted);
+    ::esphome::App.register_component(c);
+    return c;
 }
 
 inline DS24xxOutput *ds24xx_register_output(DS24xxComponent *parent, uint8_t channel,
