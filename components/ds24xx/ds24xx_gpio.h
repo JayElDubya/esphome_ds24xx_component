@@ -68,13 +68,13 @@ class OneWire {
 // overload that accepts a power flag (e.g. write(byte, power)) to
 // request a strong pull-up during that byte.
 
-namespace ds24xx {
-
-class DS24xxComponent;
-
 // Forward-declare the global Application instance so registration helpers
 // can call it even if <esphome/core/application.h> hasn't been included yet.
 namespace esphome { class Application; extern Application App; }
+
+namespace ds24xx {
+
+class DS24xxComponent;
 
 class DS24xxOutput : public ::esphome::output::BinaryOutput, public ::esphome::Component {
  public:
