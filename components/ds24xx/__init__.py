@@ -49,7 +49,13 @@ schema_fields = {
 }
 
 # Always accept the `one_wire` key syntactically; validate at codegen time
-schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+# If the onewire component is available at codegen time, accept an id
+# reference to the shared OneWireBus; otherwise accept any value so the
+# YAML still parses and we can error in `to_code()` if it's actually used.
+if HAVE_ONEWIRE and onewire_ns is not None:
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(onewire_ns.OneWire)
+else:
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
 
 def validate_onewire_presence(value):
     if CONF_ONE_WIRE not in value and CONF_ONE_WIRE_PIN not in value:
