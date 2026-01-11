@@ -70,13 +70,8 @@ class OneWire {
 
 // Ensure the esphome Application type is available so we can call
 // ::esphome::App.register_component() from the registration helpers.
-#if defined(__has_include)
-#  if __has_include("esphome/core/application.h")
-#    include "esphome/core/application.h"
-#  endif
-#endif
-// Forward-declare App as a fallback if the header wasn't available at
-// codegen/compile time.
+#include "esphome/core/application.h"
+// Forward-declare App as a fallback (the header defines it when available).
 namespace esphome { class Application; extern Application App; }
 
 namespace ds24xx {
