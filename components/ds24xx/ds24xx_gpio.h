@@ -328,11 +328,13 @@ inline DS24xxComponent *ds24xx_register_component(uint8_t one_wire_pin, bool inv
 	return c;
 }
 
+#if defined(DS24XX_HAVE_ESPHOME_ONEWIRE)
 inline DS24xxComponent *ds24xx_register_component(::esphome::onewire::OneWireBus *bus, bool inverted = false) {
-    auto *c = new DS24xxComponent(bus, inverted);
-    ::esphome::App.register_component(c);
-    return c;
+	auto *c = new DS24xxComponent(bus, inverted);
+	::esphome::App.register_component(c);
+	return c;
 }
+#endif
 
 inline DS24xxOutput *ds24xx_register_output(DS24xxComponent *parent, uint8_t channel,
 													uint8_t device_index = 0) {
