@@ -1,0 +1,76 @@
+esphome:
+  name: my-proj
+
+esp8266:
+  board: d1_mini_pro
+  framework:
+    version: recommended
+  restore_from_flash: true
+
+wifi:
+  fast_connect: True
+  use_address: !secret use_address
+  domain: !secret domain
+  min_auth_mode: WPA2
+  manual_ip:
+    static_ip: !secret use_address
+    gateway: !secret gateway
+    subnet:  !secret subnet
+    dns1:    !secret dns1
+  ap:
+    ssid:     my-ap
+    password: !secret ap_password
+    channel:  1
+
+logger:
+  level: DEBUG
+
+api:
+  port: 6053
+  id: api_server
+  encryption:
+    key: !secret api_key
+  reboot_timeout: 5min
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+    port: 8266
+
+one_wire:
+  - platform: gpio
+    id: ow_bus
+    pin: 13
+
+# Use shared one_wire and one_wire_pin as fallback
+ds24xx:
+  id: ds1
+  one_wire: ow_bus
+  one_wire_pin: 13
+  inverted: true
+  outputs:
+    - id: o0
+      channel: 0
+      device_index: 0
+    - id: o1
+      channel: 1
+      device_index: 0
+
+output:
+  - platform: esp8266_pwm
+    id: indicator_output
+    pin: D4
+    inverted: true
+
+switch:
+  - platform: output
+    name: "Generic Output 0"
+    output: o0
+    id: switch_fan
+    internal: true
+
+  - platform: output
+    name: "Generic Output 1"
+    output: o1
+    id: switch_fire
+    internal: true

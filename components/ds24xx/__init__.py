@@ -49,13 +49,10 @@ schema_fields = {
 }
 
 # Always accept the `one_wire` key syntactically; validate at codegen time
-# If the onewire component is available at codegen time, accept an id
-# reference to the shared OneWireBus; otherwise accept any value so the
-# YAML still parses and we can error in `to_code()` if it's actually used.
-if HAVE_ONEWIRE and one_wire_ns is not None:
-    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(one_wire_ns.OneWireBus)
-else:
-    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+# Accept any value here to avoid schema rejections across different esphome
+# installations; we'll perform a runtime/codegen check in `to_code()` and
+# raise a clear error if the shared OneWireBus type isn't present.
+schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
 
 def validate_onewire_presence(value):
     if CONF_ONE_WIRE not in value and CONF_ONE_WIRE_PIN not in value:
@@ -69,10 +66,19 @@ async def to_code(config):
     # create main component, prefer shared one_wire bus when provided
     inverted = config[CONF_INVERTED]
     if CONF_ONE_WIRE in config:
-        if not HAVE_ONEWIRE:
-            raise Exception("ds24xx: 'one_wire' specified but the esphome installation does not provide the onewire component")
-        ow = await cg.get_variable(config[CONF_ONE_WIRE])
-        comp = cg.new_Pvariable(config[CONF_ID], ow, inverted)
+        # Try to resolve the shared OneWire bus id. If it's not available
+        # at codegen time, fall back to using the configured `one_wire_pin`.
+        try:
+            ow = await cg.get_variable(config[CONF_ONE_WIRE])
+        except Exception:
+            ow = None
+        if ow is not None:
+            comp = cg.new_Pvariable(config[CONF_ID], ow, inverted)
+        else:
+            one_wire_pin = config.get(CONF_ONE_WIRE_PIN)
+            if one_wire_pin is None:
+                raise Exception("ds24xx: 'one_wire' specified but the one_wire id could not be resolved and no 'one_wire_pin' fallback was provided")
+            comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
     else:
         one_wire_pin = config[CONF_ONE_WIRE_PIN]
         comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)

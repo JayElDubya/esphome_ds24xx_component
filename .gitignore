@@ -11,7 +11,9 @@
 .DS_Store
 # Do not upload secrets or local example configs
 secrets.yaml
-examples/fireplace_under.yaml
+# examples/fireplace_under.yaml
+examples/secrets.yaml
+examples/.esphome/
 
 # Ignore compiled Python artifacts
 __pycache__/

@@ -1,0 +1,381 @@
+esphome:
+  name: my-proj
+
+esp8266:
+  board: d1_mini_pro
+  framework:
+    version: recommended
+  restore_from_flash: true
+
+wifi:
+  fast_connect: True
+  use_address: !secret use_address
+  domain: !secret domain
+  min_auth_mode: WPA2
+  manual_ip:
+    static_ip: !secret use_address
+    gateway: !secret gateway
+    subnet:  !secret subnet
+    dns1:    !secret dns1
+  ap:
+    ssid:     my-ap
+    password: !secret ap_password
+    channel:  1
+
+  networks:
+    - ssid:     !secret wifi_ssid_NoT
+      password: !secret wifi_password_NoT
+
+logger:
+  level: DEBUG
+  logs:
+    mqtt.component: ERROR
+    mqtt.client: ERROR
+    wifi: ERROR
+    wifi_info: ERROR
+    wifi_signal: ERROR
+    wifi_signal.sensor: ERROR
+    template.number: ERROR
+    template.text_sensor: ERROR
+    uptime.sensor: ERROR
+    restart.button: ERROR
+    safe_mode.button: ERROR 
+    version.text_sensor: ERROR
+    safe_mode: ERROR
+    logger: ERROR
+    esp8266_pwm: ERROR
+    light: ERROR
+    esphome.ota: ERROR
+    mdns: ERROR
+    homeassistant.binary_sensor: ERROR
+    api: ERROR
+    status: ERROR
+    time: ERROR
+    text_sensor: ERROR
+    sensor: ERROR
+    api.service: ERROR
+    api.connection: ERROR
+
+api:
+  port: 6053
+  id: api_server
+  encryption:
+    key: !secret api_key
+  reboot_timeout: 5min
+
+###################################################################
+# https://esphome.io/components/ota.html
+###################################################################
+ota:
+  - platform: esphome
+    password: !secret ota_password
+    port: 8266
+
+external_components:
+  - source: github://JayElDubya/esphome_ds24xx_component@master
+    components: [ ds24xx ]
+
+one_wire:
+  - platform: gpio
+    id: ow_bus
+    pin: 13
+
+ds24xx:
+  id: ds1
+  # one_wire: ow_bus
+  one_wire_pin: 13
+  inverted: true
+  outputs:
+    - id: o0
+      channel: 0
+      device_index: 0
+    - id: o1
+      channel: 1
+      device_index: 0
+
+output:
+  - platform: esp8266_pwm
+    id: indicator_output
+    pin: D4
+    inverted: true
+
+# globals:
+#   - id: status_blink_rate
+#     type: int
+#     restore_value: no
+#     initial_value: '500'
+
+# time:
+#   - platform: homeassistant
+#     id: time_ha
+#     timezone: America/New_York
+
+switch:
+  - platform: output
+    name: "Generic Output 0"
+    output: o0
+    id: switch_fan
+    internal: true
+
+  - platform: output
+    name: "Generic Output 1"
+    output: o1
+    id: switch_fire
+    internal: true
+
+  
+  # - platform: custom
+  #   lambda: |-
+  #     auto o0 = new ds24xx::DS24xxOutput(id(ds1), 0);
+  #     App.register_component(o0);
+  #     return {o0};
+  #   switches:
+  #     - id: switch_fan
+  #       internal: true
+
+  # - platform: custom
+  #   lambda: |-
+  #     auto o1 = new ds24xx::DS24xxOutput(id(ds1), 1);
+  #     App.register_component(o1);
+  #     return {o1};
+  #   switches:
+  #     - id: switch_fire
+  #       internal: true
+
+  - name: "Fireplace Fan"
+    platform: template
+    id: fan
+    icon: mdi:fan
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_on:
+          id: switch_fan
+      - switch.template.publish:
+          id: fan
+          state: ON
+    turn_off_action:
+      - switch.turn_off:
+          id: switch_fan
+      - switch.template.publish:
+          id: fan
+          state: OFF
+    lambda: "return id(fan).state;"
+
+  - name: "Fireplace Fire"
+    platform: template
+    id: fire
+    icon: mdi:fire
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_on:
+          id: switch_fire
+      - switch.template.publish:
+          id: fire
+          state: ON
+    turn_off_action:
+      - switch.turn_off:
+          id: switch_fire
+      - switch.template.publish:
+          id: fire
+          state: OFF
+    lambda: "return id(fire).state;"
+
+# binary_sensor:
+  # - id: external_switch
+  #   platform: gpio
+  #   internal: true
+  #   pin:
+  #     number: D1
+  #     inverted: true
+  #     mode:
+  #       input: true
+  #       pullup: true
+  #   filters:
+  #     - delayed_on: 10ms
+  #     - delayed_off: 10ms
+  #   device_class: heat
+  #   on_press:
+  #     - logger.log: "Wall switch turned on"
+  #     - switch.turn_on: fire
+  #   on_release:
+  #     - logger.log: "Wall switch turned off"
+  #     - switch.turn_off: fire
+
+  # - platform: homeassistant
+  #   id: motion
+  #   entity_id: binary_sensor.lr_sony_receiver_motion
+  #   internal: true
+  #   on_press:
+  #     then:
+  #       - if:
+  #           condition:
+  #             switch.is_on: fire
+  #           then:
+  #             - script.execute: fire_off_delay
+
+  # - platform: template
+  #   name: Wifi On
+  #   id: wifi_state
+  #   internal: true
+  #   lambda: 'return (WiFi.status() == WL_CONNECTED);'
+  #   on_state:
+  #     then:
+  #       - script.execute: check_status
+
+  # - platform: status
+  #   name: Hass Connected
+  #   id: hass_connected
+  #   internal: true
+  #   on_state:
+  #     then:
+  #       - script.execute: check_status
+
+light:
+  - platform: monochromatic
+    name: "Indicator"
+    id: indicator
+    output: indicator_output
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0ms
+    internal: true
+
+# text_sensor:
+#   - platform: template
+#     id: ts_timeout_time
+#     update_interval: never 
+#     name: "Fireplace Timeout Time"
+
+# number:
+#   - platform: template
+#     id: n_timeout_min
+#     optimistic: true
+#     unit_of_measurement: "min"
+#     min_value: 1
+#     max_value: 60
+#     step: 1
+#     restore_value: true
+#     initial_value: 30
+#     icon: mdi:timer
+#     name: "Fireplace Timeout"
+
+# script:
+  # - id: fire_off_delay
+  #   mode: restart
+  #   then:
+  #     # - delay: !lambda "return id(n_timeout_min).state * 60000;"
+  #     - script.execute: turn_off_fire
+
+  # - id: turn_on_fire
+  #   then:
+  #     - switch.turn_on:
+  #         id: switch_fire
+  #     - switch.template.publish:
+  #         id: fire
+  #         state: ON
+  #     - logger.log:
+  #         format: "Fire is on."
+  #         level: INFO
+      # - text_sensor.template.publish: #for HA timer-bar-card use
+      #     id: ts_timeout_time
+      #     state: !lambda |-
+      #       if (id(time_ha).now().is_valid()) {
+      #         const time_t timeoutSec = id(n_timeout_min).state*60;
+      #         time_t currTime = id(time_ha).utcnow().timestamp + timeoutSec;
+      #         char str[21]; // larger buffer
+      #         strftime(str, sizeof(str), "%Y-%m-%dT%H:%M:%S", localtime(&currTime));
+      #         return  { str };
+      #       } else {
+      #         return 0;
+      #       }
+      # - script.execute: fire_off_delay
+
+  # - id: turn_on_fan
+  #   then:
+  #     - switch.turn_on:
+  #         id: switch_fan
+  #     - script.execute: turn_on_fire
+  #     - switch.template.publish:
+  #         id: fan
+  #         state: ON
+  #     - logger.log:
+  #         format: "Fan is on."
+  #         level: INFO
+
+  # - id: turn_off_fire
+  #   then:
+  #     - if:
+  #         condition:
+  #           switch.is_on: switch_fire
+  #         then:
+  #           - logger.log:
+  #               format: "Fire is off."
+  #               level: INFO
+  #     - switch.turn_off: switch_fire
+  #     - switch.template.publish:
+  #         id: fire
+  #         state: OFF
+  #     - script.execute: turn_off_fan
+  #     - script.stop: fire_off_delay
+
+  # - id: turn_off_fan
+  #   then:
+  #     - if:
+  #         condition:
+  #           switch.is_on: switch_fan
+  #         then:
+  #           - logger.log:
+  #               format: "Fan is off."
+  #               level: INFO
+  #     - switch.turn_off: switch_fan
+  #     - switch.template.publish:
+  #         id: fan
+  #         state: OFF
+  #     - script.execute: fire_off_delay
+
+  # - id: check_status
+  #   then:
+  #     if:
+  #       condition:
+  #         binary_sensor.is_on: hass_connected
+  #       then:
+  #         script.stop: flash_status
+  #       else:
+  #         - if:
+  #             condition:
+  #               binary_sensor.is_on: wifi_state
+  #             then:
+  #               - globals.set:
+  #                   id: status_blink_rate
+  #                   value: '250'
+  #             else:
+  #               - globals.set:
+  #                   id: status_blink_rate
+  #                   value: '500'
+  #         - if:
+  #             condition:
+  #               not:
+  #                 script.is_running: flash_status
+  #             then:
+  #               - script.execute: flash_status
+
+  # - id: flash_status
+  #   then:
+  #     - light.turn_on:
+  #         id: indicator
+  #         brightness: 100%
+  #         transition_length: !lambda "return id(status_blink_rate);"
+  #     - delay: !lambda "return id(status_blink_rate);"
+  #     - light.turn_on:
+  #         id: indicator
+  #         brightness: 0%
+  #         transition_length: !lambda "return id(status_blink_rate);"
+  #     - delay: !lambda "return id(status_blink_rate);"
+
+# interval:
+#   - interval: 500ms
+#     then:
+#       - if:
+#           condition:
+#             switch.is_off: fire
+#           then:
+#             - script.execute: turn_off_fire
