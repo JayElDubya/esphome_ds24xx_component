@@ -324,14 +324,14 @@ inline void DS24xxOutput::write_state(bool state) {
 
 inline DS24xxComponent *ds24xx_register_component(uint8_t one_wire_pin, bool inverted = false) {
 	auto *c = new DS24xxComponent(one_wire_pin, inverted);
-	::esphome::App.register_component(c);
+	App.register_component(c);
 	return c;
 }
 
 #if defined(DS24XX_HAVE_ESPHOME_ONEWIRE)
 inline DS24xxComponent *ds24xx_register_component(::esphome::onewire::OneWireBus *bus, bool inverted = false) {
 	auto *c = new DS24xxComponent(bus, inverted);
-	::esphome::App.register_component(c);
+	App.register_component(c);
 	return c;
 }
 #endif
@@ -339,7 +339,7 @@ inline DS24xxComponent *ds24xx_register_component(::esphome::onewire::OneWireBus
 inline DS24xxOutput *ds24xx_register_output(DS24xxComponent *parent, uint8_t channel,
 													uint8_t device_index = 0) {
 	auto *o = new DS24xxOutput(parent, channel, device_index);
-	::esphome::App.register_component(o);
+	App.register_component(o);
 	return o;
 }
 
