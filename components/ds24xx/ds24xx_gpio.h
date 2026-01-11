@@ -130,10 +130,17 @@ class DS24xxComponent : public ::esphome::Component {
 
  	void setup() override {
 		ESP_LOGD("ds24xx", "Searching for DS24xx devices on pin %u", this->one_wire_pin_);
-		oneWire_->reset_search();
-		delay(50);
 		uint8_t buf[8];
-		while (oneWire_->search(buf)) {
+		bool any_found = false;
+		// Try a few searches with increasing delays — sometimes the bus
+		// isn't immediately stable during early setup compared to the
+		// gpio.one_wire component. Retry to improve discovery reliability.
+		for (int attempt = 0; attempt < 3 && !any_found; ++attempt) {
+			ESP_LOGD("ds24xx", "Attempt %d to search 1-wire (pin %u)", attempt+1, this->one_wire_pin_);
+			oneWire_->reset_search();
+			delay(50 * (attempt + 1));
+			while (oneWire_->search(buf)) {
+				any_found = true;
 			// Debug: print raw address bytes and quick CRC checks
 			char raw[3*8 + 1]; raw[0] = '\0';
 			for (int i = 0; i < 8; ++i) {
