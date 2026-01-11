@@ -158,7 +158,15 @@ class DS24xxComponent : public ::esphome::Component {
 				}
 			}
 			if (!normalized) {
-				ESP_LOGW("ds24xx", "Found device with invalid CRC; skipping");
+				char hexbuf[3*8 + 1];
+				hexbuf[0] = '\0';
+				for (int i = 0; i < 8; ++i) {
+					char tmp[4];
+					snprintf(tmp, sizeof(tmp), "%02X", buf[i]);
+					strcat(hexbuf, tmp);
+					if (i != 7) strcat(hexbuf, " ");
+				}
+				ESP_LOGW("ds24xx", "Found device with invalid CRC; skipping raw=%s", hexbuf);
 				continue;
 			}
 			uint8_t fam = a[0];
