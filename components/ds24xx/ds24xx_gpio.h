@@ -134,22 +134,27 @@ class DS24xxComponent : public ::esphome::Component {
 		delay(50);
 		uint8_t buf[8];
 		while (oneWire_->search(buf)) {
-			// Normalize address byte order: some OneWire implementations
-			// provide addresses in reversed order compared to what this
-			// driver expects. Accept either orientation if the CRC checks.
+			// Try to locate a family byte and normalize the 8-byte address
+			// by rotating (forward or reverse) so the family is at index 0
+			// and the CRC check passes for the resulting order.
 			std::array<uint8_t, 8> a{};
 			bool normalized = false;
-			if (OneWire::crc8(buf, 7) == buf[7]) {
-				for (int i = 0; i < 8; ++i) a[i] = buf[i];
-				normalized = true;
-			} else {
-				// try reversed
-				uint8_t rev[8];
-				for (int i = 0; i < 8; ++i) rev[i] = buf[7 - i];
-				if (OneWire::crc8(rev, 7) == rev[7]) {
-					for (int i = 0; i < 8; ++i) a[i] = rev[i];
-					normalized = true;
-					ESP_LOGD("ds24xx", "Normalized reversed 1-wire address byte order");
+			for (int dir = 0; dir < 2 && !normalized; ++dir) {
+				// dir==0 -> forward rotation, dir==1 -> reverse rotation
+				for (int shift = 0; shift < 8 && !normalized; ++shift) {
+					uint8_t candidate = buf[shift];
+					if (candidate != FAMILY_DS2413 && candidate != FAMILY_DS2408) continue;
+					// build rotated address
+					for (int j = 0; j < 8; ++j) {
+						int idx = (dir == 0) ? (shift + j) % 8 : (shift - j + 8) % 8;
+						a[j] = buf[idx];
+					}
+					// validate CRC for the normalized order
+					if (OneWire::crc8(a.data(), 7) == a[7]) {
+						normalized = true;
+						ESP_LOGD("ds24xx", "Normalized 1-wire address (dir=%d shift=%d)", dir, shift);
+						break;
+					}
 				}
 			}
 			if (!normalized) {
