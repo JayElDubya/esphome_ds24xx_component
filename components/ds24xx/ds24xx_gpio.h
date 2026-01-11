@@ -73,6 +73,9 @@ class OneWire {
 #include "esphome/core/application.h"
 // Forward-declare App as a fallback (the header defines it when available).
 namespace esphome { class Application; extern Application App; }
+// Forward-declare GPIOOneWireBus so we can accept shared gpio bus pointers
+// without requiring a particular onewire namespace layout at codegen time.
+namespace esphome { namespace gpio { class GPIOOneWireBus; } }
 
 namespace ds24xx {
 
@@ -126,6 +129,20 @@ class DS24xxComponent : public ::esphome::Component {
 		else
 			oneWire_ = nullptr;
 	}
+#endif
+	// Construct from the gpio-specific OneWire bus implementation
+	// (e.g. gpio::GPIOOneWireBus). Some esphome builds expose the
+	// shared bus under different namespaces; accept the gpio:: variant
+	// and extract the underlying OneWire pointer if available.
+	explicit DS24xxComponent(::esphome::gpio::GPIOOneWireBus *gbus, bool inverted = false)
+			: one_wire_pin_(0xFF), inverted_(inverted) {
+		if (gbus)
+			oneWire_ = gbus->get_onewire();
+		else
+			oneWire_ = nullptr;
+	}
+
+#if defined(DS24XX_HAVE_ESPHOME_ONEWIRE)
 #endif
 
  	void setup() override {
