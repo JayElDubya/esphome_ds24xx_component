@@ -40,19 +40,185 @@ CONFIG_SCHEMA = cv.Schema({
 
 
 async def to_code(config):
-    # create main component
-    one_wire_pin = config[CONF_ONE_WIRE_PIN]
-    inverted = config[CONF_INVERTED]
-    comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
-    await cg.register_component(comp, config)
+    import esphome.codegen as cg
+    import esphome.config_validation as cv
+    from esphome.components import output as output_ns
+    from esphome.components import binary_sensor as binary_sensor_ns
+    try:
+        from esphome.components import one_wire as one_wire_ns
+        HAVE_ONEWIRE = True
+    except Exception:
+        one_wire_ns = None
+        HAVE_ONEWIRE = False
+    from esphome.const import CONF_ID
 
-    # create outputs
-    for o in config.get(CONF_OUTPUTS, []):
-        out = cg.new_Pvariable(o[CONF_ID], comp, o[CONF_CHANNEL], o[CONF_DEVICE_INDEX])
-        # register with ESPHome output subsystem
-        await output_ns.register_output(out, o)
+    AUTO_LOAD = ["output", "binary_sensor"]
 
-    # create binary sensors
-    for b in config.get(CONF_BINARY_SENSORS, []):
-        bs = cg.new_Pvariable(b[CONF_ID], comp, b[CONF_CHANNEL], b[CONF_DEVICE_INDEX])
-        await binary_sensor_ns.register_binary_sensor(bs, b)
+    ds24xx_ns = cg.esphome_ns.namespace('ds24xx')
+    DS24xxComponent = ds24xx_ns.class_('DS24xxComponent', cg.Component)
+    DS24xxOutput = ds24xx_ns.class_('DS24xxOutput', output_ns.BinaryOutput)
+    DS24xxBinarySensor = ds24xx_ns.class_('DS24xxBinarySensor', binary_sensor_ns.BinarySensor)
+
+    CONF_ONE_WIRE_PIN = 'one_wire_pin'
+    CONF_ONE_WIRE = 'one_wire'
+    CONF_INVERTED = 'inverted'
+    CONF_OUTPUTS = 'outputs'
+    CONF_BINARY_SENSORS = 'binary_sensors'
+    CONF_CHANNEL = 'channel'
+    CONF_DEVICE_INDEX = 'device_index'
+
+    OUTPUT_SCHEMA = cv.Schema({
+        cv.GenerateID(): cv.declare_id(DS24xxOutput),
+        cv.Required(CONF_CHANNEL): cv.int_,
+        cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
+    })
+
+    BINARY_SENSOR_SCHEMA = cv.Schema({
+        cv.GenerateID(): cv.declare_id(DS24xxBinarySensor),
+        cv.Required(CONF_CHANNEL): cv.int_,
+        cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
+    })
+
+    # Build schema fields dynamically so `one_wire` key is accepted even when
+    # the onewire component is not present (we'll raise a clear error in to_code
+    # if user supplies `one_wire` but the runtime ESPhome environment lacks it).
+    schema_fields = {
+        cv.GenerateID(): cv.declare_id(DS24xxComponent),
+        cv.Optional(CONF_ONE_WIRE_PIN): cv.int_,
+        cv.Optional(CONF_INVERTED, default=False): cv.boolean,
+        cv.Optional(CONF_OUTPUTS, default=[]): cv.ensure_list(OUTPUT_SCHEMA),
+        cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
+    }
+
+    # Always accept the `one_wire` key syntactically; validate at codegen time
+    # Accept any value here to avoid schema rejections across different esphome
+    # installations; we'll perform a runtime/codegen check in `to_code()` and
+    # raise a clear error if the shared OneWireBus type isn't present.
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+
+    def validate_onewire_presence(value):
+        if CONF_ONE_WIRE not in value and CONF_ONE_WIRE_PIN not in value:
+            raise cv.Invalid("ds24xx: either 'one_wire' or 'one_wire_pin' must be specified")
+        return value
+
+    CONFIG_SCHEMA = cv.All(cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA), validate_onewire_presence)
+
+
+    async def to_code(config):
+        # create main component, prefer shared one_wire bus when provided
+        inverted = config[CONF_INVERTED]
+        if CONF_ONE_WIRE in config:
+            # Try to resolve the shared OneWire bus id. If it's not available
+            # at codegen time, fall back to using the configured `one_wire_pin`.
+            try:
+                ow = await cg.get_variable(config[CONF_ONE_WIRE])
+            except Exception:
+                ow = None
+            if ow is not None:
+                comp = cg.new_Pvariable(config[CONF_ID], ow, inverted)
+            else:
+                one_wire_pin = config.get(CONF_ONE_WIRE_PIN)
+                if one_wire_pin is None:
+                    raise Exception("ds24xx: 'one_wire' specified but the one_wire id could not be resolved and no 'one_wire_pin' fallback was provided")
+                comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
+        else:
+            one_wire_pin = config[CONF_ONE_WIRE_PIN]
+            comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
+        await cg.register_component(comp, config)
+
+        import esphome.codegen as cg
+        import esphome.config_validation as cv
+        from esphome.components import output as output_ns
+        from esphome.components import binary_sensor as binary_sensor_ns
+        try:
+            from esphome.components import one_wire as one_wire_ns
+            HAVE_ONEWIRE = True
+        except Exception:
+            one_wire_ns = None
+            HAVE_ONEWIRE = False
+        from esphome.const import CONF_ID
+
+        AUTO_LOAD = ["output", "binary_sensor"]
+
+        ds24xx_ns = cg.esphome_ns.namespace('ds24xx')
+        DS24xxComponent = ds24xx_ns.class_('DS24xxComponent', cg.Component)
+        DS24xxOutput = ds24xx_ns.class_('DS24xxOutput', output_ns.BinaryOutput)
+        DS24xxBinarySensor = ds24xx_ns.class_('DS24xxBinarySensor', binary_sensor_ns.BinarySensor)
+
+        CONF_ONE_WIRE_PIN = 'one_wire_pin'
+        CONF_ONE_WIRE = 'one_wire'
+        CONF_INVERTED = 'inverted'
+        CONF_OUTPUTS = 'outputs'
+        CONF_BINARY_SENSORS = 'binary_sensors'
+        CONF_CHANNEL = 'channel'
+        CONF_DEVICE_INDEX = 'device_index'
+
+        OUTPUT_SCHEMA = cv.Schema({
+            cv.GenerateID(): cv.declare_id(DS24xxOutput),
+            cv.Required(CONF_CHANNEL): cv.int_,
+            cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
+        })
+
+        BINARY_SENSOR_SCHEMA = cv.Schema({
+            cv.GenerateID(): cv.declare_id(DS24xxBinarySensor),
+            cv.Required(CONF_CHANNEL): cv.int_,
+            cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
+        })
+
+        # Build schema fields dynamically so `one_wire` key is accepted even when
+        # the onewire component is not present (we'll raise a clear error in to_code
+        # if user supplies `one_wire` but the runtime ESPhome environment lacks it).
+        schema_fields = {
+            cv.GenerateID(): cv.declare_id(DS24xxComponent),
+            cv.Optional(CONF_ONE_WIRE_PIN): cv.int_,
+            cv.Optional(CONF_INVERTED, default=False): cv.boolean,
+            cv.Optional(CONF_OUTPUTS, default=[]): cv.ensure_list(OUTPUT_SCHEMA),
+            cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
+        }
+
+        # Always accept the `one_wire` key syntactically; validate at codegen time
+        # Accept any value here to avoid schema rejections across different esphome
+        # installations; we'll perform a runtime/codegen check in `to_code()` and
+        # raise a clear error if the shared OneWireBus type isn't present.
+        schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+
+        def validate_onewire_presence(value):
+            if CONF_ONE_WIRE not in value and CONF_ONE_WIRE_PIN not in value:
+                raise cv.Invalid("ds24xx: either 'one_wire' or 'one_wire_pin' must be specified")
+            return value
+
+        CONFIG_SCHEMA = cv.All(cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA), validate_onewire_presence)
+
+
+        async def to_code(config):
+            # create main component, prefer shared one_wire bus when provided
+            inverted = config[CONF_INVERTED]
+            if CONF_ONE_WIRE in config:
+                # Try to resolve the shared OneWire bus id. If it's not available
+                # at codegen time, fall back to using the configured `one_wire_pin`.
+                try:
+                    ow = await cg.get_variable(config[CONF_ONE_WIRE])
+                except Exception:
+                    ow = None
+                if ow is not None:
+                    comp = cg.new_Pvariable(config[CONF_ID], ow, inverted)
+                else:
+                    one_wire_pin = config.get(CONF_ONE_WIRE_PIN)
+                    if one_wire_pin is None:
+                        raise Exception("ds24xx: 'one_wire' specified but the one_wire id could not be resolved and no 'one_wire_pin' fallback was provided")
+                    comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
+            else:
+                one_wire_pin = config[CONF_ONE_WIRE_PIN]
+                comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
+            await cg.register_component(comp, config)
+
+            # create outputs
+            for o in config.get(CONF_OUTPUTS, []):
+                out = cg.new_Pvariable(o[CONF_ID], comp, o[CONF_CHANNEL], o[CONF_DEVICE_INDEX])
+                # register with ESPHome output subsystem
+                await output_ns.register_output(out, o)
+
+            # create binary sensors
+            for b in config.get(CONF_BINARY_SENSORS, []):
+                bs = cg.new_Pvariable(b[CONF_ID], comp, b[CONF_CHANNEL], b[CONF_DEVICE_INDEX])
+                await binary_sensor_ns.register_binary_sensor(bs, b)

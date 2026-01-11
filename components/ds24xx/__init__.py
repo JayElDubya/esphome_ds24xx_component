@@ -37,9 +37,9 @@ BINARY_SENSOR_SCHEMA = cv.Schema({
     cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
 })
 
-# Build schema fields dynamically so `one_wire` key is accepted even when
-# the onewire component is not present (we'll raise a clear error in to_code
-# if user supplies `one_wire` but the runtime ESPhome environment lacks it).
+# Build schema fields dynamically so `one_wire` key is accepted when
+# the onewire component is present. If not present, accept any value
+# syntactically and validate in `to_code()`.
 schema_fields = {
     cv.GenerateID(): cv.declare_id(DS24xxComponent),
     cv.Optional(CONF_ONE_WIRE_PIN): cv.int_,
@@ -48,11 +48,11 @@ schema_fields = {
     cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
 }
 
-# Always accept the `one_wire` key syntactically; validate at codegen time
-# Accept any value here to avoid schema rejections across different esphome
-# installations; we'll perform a runtime/codegen check in `to_code()` and
-# raise a clear error if the shared OneWireBus type isn't present.
-schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+if HAVE_ONEWIRE and one_wire_ns is not None:
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(one_wire_ns.OneWireBus)
+else:
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+
 
 def validate_onewire_presence(value):
     if CONF_ONE_WIRE not in value and CONF_ONE_WIRE_PIN not in value:
