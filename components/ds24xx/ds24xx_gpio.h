@@ -68,8 +68,15 @@ class OneWire {
 // overload that accepts a power flag (e.g. write(byte, power)) to
 // request a strong pull-up during that byte.
 
-// Forward-declare the global Application instance so registration helpers
-// can call it even if <esphome/core/application.h> hasn't been included yet.
+// Ensure the esphome Application type is available so we can call
+// ::esphome::App.register_component() from the registration helpers.
+#if defined(__has_include)
+#  if __has_include("esphome/core/application.h")
+#    include "esphome/core/application.h"
+#  endif
+#endif
+// Forward-declare App as a fallback if the header wasn't available at
+// codegen/compile time.
 namespace esphome { class Application; extern Application App; }
 
 namespace ds24xx {
