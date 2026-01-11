@@ -129,27 +129,43 @@ class DS24xxComponent : public ::esphome::Component {
 #endif
 
  	void setup() override {
- 		ESP_LOGD("ds24xx", "Searching for DS24xx devices on pin %u", this->one_wire_pin_);
- 		oneWire_->reset_search();
- 		delay(50);
- 		uint8_t buf[8];
- 		while (oneWire_->search(buf)) {
- 			if (OneWire::crc8(buf, 7) != buf[7]) {
- 				ESP_LOGW("ds24xx", "Found device with invalid CRC; skipping");
- 				continue;
- 			}
- 			std::array<uint8_t, 8> a{};
- 			for (int i = 0; i < 8; ++i) a[i] = buf[i];
- 			uint8_t fam = a[0];
- 			if (fam != FAMILY_DS2413 && fam != FAMILY_DS2408) {
- 				ESP_LOGW("ds24xx", "Found unsupported device family 0x%02X; skipping", fam);
- 				continue;
- 			}
- 			addresses_.push_back(a);
- 			families_.push_back(fam);
- 			states_.push_back(0);
- 			ESP_LOGD("ds24xx", "Discovered device index %u family 0x%02X", (uint32_t)addresses_.size()-1, fam);
- 		}
+		ESP_LOGD("ds24xx", "Searching for DS24xx devices on pin %u", this->one_wire_pin_);
+		oneWire_->reset_search();
+		delay(50);
+		uint8_t buf[8];
+		while (oneWire_->search(buf)) {
+			// Normalize address byte order: some OneWire implementations
+			// provide addresses in reversed order compared to what this
+			// driver expects. Accept either orientation if the CRC checks.
+			std::array<uint8_t, 8> a{};
+			bool normalized = false;
+			if (OneWire::crc8(buf, 7) == buf[7]) {
+				for (int i = 0; i < 8; ++i) a[i] = buf[i];
+				normalized = true;
+			} else {
+				// try reversed
+				uint8_t rev[8];
+				for (int i = 0; i < 8; ++i) rev[i] = buf[7 - i];
+				if (OneWire::crc8(rev, 7) == rev[7]) {
+					for (int i = 0; i < 8; ++i) a[i] = rev[i];
+					normalized = true;
+					ESP_LOGD("ds24xx", "Normalized reversed 1-wire address byte order");
+				}
+			}
+			if (!normalized) {
+				ESP_LOGW("ds24xx", "Found device with invalid CRC; skipping");
+				continue;
+			}
+			uint8_t fam = a[0];
+			if (fam != FAMILY_DS2413 && fam != FAMILY_DS2408) {
+				ESP_LOGW("ds24xx", "Found unsupported device family 0x%02X; skipping", fam);
+				continue;
+			}
+			addresses_.push_back(a);
+			families_.push_back(fam);
+			states_.push_back(0);
+			ESP_LOGD("ds24xx", "Discovered device index %u family 0x%02X", (uint32_t)addresses_.size()-1, fam);
+		}
  		if (addresses_.empty()) {
 			ESP_LOGW("ds24xx", "No supported devices found on the bus");
  			return;
