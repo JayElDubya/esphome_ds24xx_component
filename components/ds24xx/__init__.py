@@ -3,10 +3,10 @@ import esphome.config_validation as cv
 from esphome.components import output as output_ns
 from esphome.components import binary_sensor as binary_sensor_ns
 try:
-    from esphome.components import onewire as onewire_ns
+    from esphome.components import one_wire as one_wire_ns
     HAVE_ONEWIRE = True
 except Exception:
-    onewire_ns = None
+    one_wire_ns = None
     HAVE_ONEWIRE = False
 from esphome.const import CONF_ID
 
@@ -52,8 +52,8 @@ schema_fields = {
 # If the onewire component is available at codegen time, accept an id
 # reference to the shared OneWireBus; otherwise accept any value so the
 # YAML still parses and we can error in `to_code()` if it's actually used.
-if HAVE_ONEWIRE and onewire_ns is not None:
-    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(onewire_ns.OneWire)
+if HAVE_ONEWIRE and one_wire_ns is not None:
+    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(one_wire_ns.OneWireBus)
 else:
     schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
 
