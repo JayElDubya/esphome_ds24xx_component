@@ -34,8 +34,11 @@ class OneWire {
 #include <vector>
 #include <array>
 // Include esphome one-wire bus when available so users can supply shared bus
-#if __has_include("esphome/components/onewire/onewire.h")
-#include "esphome/components/onewire/onewire.h"
+#if defined(__has_include)
+#  if __has_include("esphome/components/onewire/onewire.h")
+#    include "esphome/components/onewire/onewire.h"
+#    define DS24XX_HAVE_ESPHOME_ONEWIRE 1
+#  endif
 #endif
 
 // This is an example-named copy of the DS24xx component to make filenames clearer
@@ -103,9 +106,12 @@ class DS24xxComponent : public ::esphome::Component {
 	explicit DS24xxComponent(uint8_t one_wire_pin, bool inverted = false)
 			: one_wire_pin_(one_wire_pin), inverted_(inverted) {
 		oneWire_ = new OneWire(one_wire_pin_);
+#if defined(DS24XX_HAVE_ESPHOME_ONEWIRE)
 		bus_ = nullptr;
+#endif
 	}
 
+#if defined(DS24XX_HAVE_ESPHOME_ONEWIRE)
 	// Construct from a shared esphome one_wire bus
 	explicit DS24xxComponent(::esphome::onewire::OneWireBus *bus, bool inverted = false)
 			: one_wire_pin_(0xFF), inverted_(inverted), bus_(bus) {
@@ -114,6 +120,7 @@ class DS24xxComponent : public ::esphome::Component {
 		else
 			oneWire_ = nullptr;
 	}
+#endif
 
  	void setup() override {
  		ESP_LOGD("ds24xx", "Searching for DS24xx devices on pin %u", this->one_wire_pin_);
@@ -193,7 +200,9 @@ class DS24xxComponent : public ::esphome::Component {
 
  private:
  	OneWire *oneWire_{nullptr};
+#if defined(DS24XX_HAVE_ESPHOME_ONEWIRE)
  	::esphome::onewire::OneWireBus *bus_{nullptr};
+#endif
  	uint8_t one_wire_pin_;
  	bool inverted_{false};
  	std::vector<std::array<uint8_t,8>> addresses_;
