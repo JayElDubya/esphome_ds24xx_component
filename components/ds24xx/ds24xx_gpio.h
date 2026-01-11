@@ -134,6 +134,18 @@ class DS24xxComponent : public ::esphome::Component {
 		delay(50);
 		uint8_t buf[8];
 		while (oneWire_->search(buf)) {
+			// Debug: print raw address bytes and quick CRC checks
+			char raw[3*8 + 1]; raw[0] = '\0';
+			for (int i = 0; i < 8; ++i) {
+				char t[4]; snprintf(t, sizeof(t), "%02X", buf[i]);
+				strcat(raw, t);
+				if (i != 7) strcat(raw, " ");
+			}
+			uint8_t crc_orig = OneWire::crc8(buf, 7);
+			uint8_t crc_buf = buf[7];
+			uint8_t rev[8]; for (int i = 0; i < 8; ++i) rev[i] = buf[7 - i];
+			uint8_t crc_rev = OneWire::crc8(rev, 7);
+			ESP_LOGD("ds24xx", "Found raw 1-wire addr: %s crc_orig=0x%02X buf[7]=0x%02X crc_rev=0x%02X (rev order)", raw, crc_orig, crc_buf, crc_rev);
 			// Try to locate a family byte and normalize the 8-byte address
 			// by rotating (forward or reverse) so the family is at index 0
 			// and the CRC check passes for the resulting order.
