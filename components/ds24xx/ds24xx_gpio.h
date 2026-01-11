@@ -200,6 +200,8 @@ class DS24xxComponent : public ::esphome::Component {
 		}
  		if (addresses_.empty()) {
 			ESP_LOGW("ds24xx", "No supported devices found on the bus");
+			ESP_LOGW("ds24xx", "If you have configured a shared gpio one_wire bus, try using 'one_wire: ow_bus' in your ds24xx config instead of 'one_wire_pin'.");
+			ESP_LOGW("ds24xx", "Also verify pull-up resistor (4.7k to 3.3V) and device wiring/power mode.");
  			return;
  		}
 		ESP_LOGD("ds24xx", "Found %u supported device(s)", (uint32_t)addresses_.size());
