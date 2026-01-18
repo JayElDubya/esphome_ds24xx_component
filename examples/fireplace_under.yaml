@@ -88,14 +88,16 @@ one_wire:
 ds24xx:
   id: ds1
   one_wire: ow_bus
-  inverted: true
+  inverted: false
   outputs:
     - id: o0
       channel: 0
       device_index: 0
+      inverted: false
     - id: o1
       channel: 1
       device_index: 0
+      inverted: false
 
 output:
   - platform: esp8266_pwm

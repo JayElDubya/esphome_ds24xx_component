@@ -1,8 +1,13 @@
 {
   "domain": "ds24xx",
-  "name": "ds24xx",
+  "name": "DS24xx GPIO Expander",
   "documentation": "https://github.com/JayElDubya/esphome_ds24xx_component",
+  "codeowners": ["@JayElDubya"],
   "requirements": [],
-  "platformio_dependencies": ["PaulStoffregen/OneWire@^2.3.6"],
-  "codeowners": ["@JayElDubya"]
+  "dependencies": ["output"],
+  "platforms": {
+    "esp8266": true,
+    "esp32": true,
+    "rp2040": false
+  }
 }

@@ -1,96 +1,105 @@
+"""
+DS24xx ESPHome Component
+
+Provides support for Dallas DS2413 (2-channel) and DS2408 (8-channel) 1-Wire GPIO expanders.
+Requires ESPHome's shared one_wire bus.
+"""
+
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import output as output_ns
-from esphome.components import binary_sensor as binary_sensor_ns
+from esphome.components import one_wire as one_wire_ns
+from esphome.const import CONF_ID, CONF_CHANNEL, CONF_INVERTED
+
+# Optional binary_sensor support
 try:
-    from esphome.components import one_wire as one_wire_ns
-    HAVE_ONEWIRE = True
-except Exception:
-    one_wire_ns = None
-    HAVE_ONEWIRE = False
-from esphome.const import CONF_ID
+    from esphome.components import binary_sensor as binary_sensor_ns
+    HAVE_BINARY_SENSOR = True
+except ImportError:
+    binary_sensor_ns = None
+    HAVE_BINARY_SENSOR = False
 
-AUTO_LOAD = ["output", "binary_sensor"]
+# Configuration keys
+CONF_ONE_WIRE = "one_wire"
+CONF_OUTPUTS = "outputs"
+CONF_BINARY_SENSORS = "binary_sensors"
+CONF_DEVICE_INDEX = "device_index"
 
-ds24xx_ns = cg.esphome_ns.namespace('ds24xx')
-DS24xxComponent = ds24xx_ns.class_('DS24xxComponent', cg.Component)
-DS24xxOutput = ds24xx_ns.class_('DS24xxOutput', output_ns.BinaryOutput)
-DS24xxBinarySensor = ds24xx_ns.class_('DS24xxBinarySensor', binary_sensor_ns.BinarySensor)
+# Namespace and class declarations
+ds24xx_ns = cg.esphome_ns.namespace("ds24xx")
+DS24xxComponent = ds24xx_ns.class_("DS24xxComponent", cg.Component)
+DS24xxOutput = ds24xx_ns.class_("DS24xxOutput", output_ns.BinaryOutput, cg.Component)
 
-CONF_ONE_WIRE_PIN = 'one_wire_pin'
-CONF_ONE_WIRE = 'one_wire'
-CONF_INVERTED = 'inverted'
-CONF_OUTPUTS = 'outputs'
-CONF_BINARY_SENSORS = 'binary_sensors'
-CONF_CHANNEL = 'channel'
-CONF_DEVICE_INDEX = 'device_index'
+if HAVE_BINARY_SENSOR:
+    DS24xxBinarySensor = ds24xx_ns.class_(
+        "DS24xxBinarySensor", binary_sensor_ns.BinarySensor, cg.Component
+    )
 
-OUTPUT_SCHEMA = cv.Schema({
-    cv.GenerateID(): cv.declare_id(DS24xxOutput),
-    cv.Required(CONF_CHANNEL): cv.int_,
-    cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
-})
+# Schema for individual outputs
+OUTPUT_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(DS24xxOutput),
+        cv.Required(CONF_CHANNEL): cv.int_range(min=0, max=7),
+        cv.Optional(CONF_DEVICE_INDEX, default=0): cv.uint8_t,
+        cv.Optional(CONF_INVERTED, default=False): cv.boolean,
+    }
+)
 
-BINARY_SENSOR_SCHEMA = cv.Schema({
-    cv.GenerateID(): cv.declare_id(DS24xxBinarySensor),
-    cv.Required(CONF_CHANNEL): cv.int_,
-    cv.Optional(CONF_DEVICE_INDEX, default=0): cv.int_,
-})
+# Schema for binary sensors (optional)
+if HAVE_BINARY_SENSOR:
+    BINARY_SENSOR_SCHEMA = cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(DS24xxBinarySensor),
+            cv.Required(CONF_CHANNEL): cv.int_range(min=0, max=7),
+            cv.Optional(CONF_DEVICE_INDEX, default=0): cv.uint8_t,
+            cv.Optional(CONF_INVERTED, default=False): cv.boolean,
+        }
+    )
 
-# Build schema fields dynamically so `one_wire` key is accepted when
-# the onewire component is present. If not present, accept any value
-# syntactically and validate in `to_code()`.
-schema_fields = {
+# Main component schema
+_SCHEMA_FIELDS = {
     cv.GenerateID(): cv.declare_id(DS24xxComponent),
-    cv.Optional(CONF_ONE_WIRE_PIN): cv.int_,
+    cv.Required(CONF_ONE_WIRE): cv.use_id(one_wire_ns.OneWireBus),
     cv.Optional(CONF_INVERTED, default=False): cv.boolean,
     cv.Optional(CONF_OUTPUTS, default=[]): cv.ensure_list(OUTPUT_SCHEMA),
-    cv.Optional(CONF_BINARY_SENSORS, default=[]): cv.ensure_list(BINARY_SENSOR_SCHEMA),
 }
 
-if HAVE_ONEWIRE and one_wire_ns is not None:
-    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.use_id(one_wire_ns.OneWireBus)
-else:
-    schema_fields[cv.Optional(CONF_ONE_WIRE)] = cv.Any()
+if HAVE_BINARY_SENSOR:
+    _SCHEMA_FIELDS[cv.Optional(CONF_BINARY_SENSORS, default=[])] = cv.ensure_list(
+        BINARY_SENSOR_SCHEMA
+    )
 
-
-def validate_onewire_presence(value):
-    if CONF_ONE_WIRE not in value and CONF_ONE_WIRE_PIN not in value:
-        raise cv.Invalid("ds24xx: either 'one_wire' or 'one_wire_pin' must be specified")
-    return value
-
-CONFIG_SCHEMA = cv.All(cv.Schema(schema_fields).extend(cv.COMPONENT_SCHEMA), validate_onewire_presence)
+CONFIG_SCHEMA = cv.Schema(_SCHEMA_FIELDS).extend(cv.COMPONENT_SCHEMA)
 
 
 async def to_code(config):
-    # create main component, prefer shared one_wire bus when provided
-    inverted = config[CONF_INVERTED]
-    if CONF_ONE_WIRE in config:
-        # Try to resolve the shared OneWire bus id. If it's not available
-        # at codegen time, fall back to using the configured `one_wire_pin`.
-        try:
-            ow = await cg.get_variable(config[CONF_ONE_WIRE])
-        except Exception:
-            ow = None
-        if ow is not None:
-            comp = cg.new_Pvariable(config[CONF_ID], ow, inverted)
-        else:
-            one_wire_pin = config.get(CONF_ONE_WIRE_PIN)
-            if one_wire_pin is None:
-                raise Exception("ds24xx: 'one_wire' specified but the one_wire id could not be resolved and no 'one_wire_pin' fallback was provided")
-            comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
-    else:
-        one_wire_pin = config[CONF_ONE_WIRE_PIN]
-        comp = cg.new_Pvariable(config[CONF_ID], one_wire_pin, inverted)
+    """Generate C++ code for the ds24xx component."""
+    # Get the shared 1-Wire bus
+    bus = await cg.get_variable(config[CONF_ONE_WIRE])
+
+    # Create main component
+    comp = cg.new_Pvariable(config[CONF_ID], bus, config[CONF_INVERTED])
     await cg.register_component(comp, config)
 
-    # create outputs
-    for o in config.get(CONF_OUTPUTS, []):
-        out = cg.new_Pvariable(o[CONF_ID], comp, o[CONF_CHANNEL], o[CONF_DEVICE_INDEX])
-        # register with ESPHome output subsystem
-        await output_ns.register_output(out, o)
+    # Create outputs
+    for output_conf in config.get(CONF_OUTPUTS, []):
+        out = cg.new_Pvariable(
+            output_conf[CONF_ID],
+            comp,
+            output_conf[CONF_CHANNEL],
+            output_conf[CONF_DEVICE_INDEX],
+        )
+        cg.add(out.set_inverted(output_conf[CONF_INVERTED]))
+        await output_ns.register_output(out, output_conf)
 
-    # create binary sensors
-    for b in config.get(CONF_BINARY_SENSORS, []):
-        bs = cg.new_Pvariable(b[CONF_ID], comp, b[CONF_CHANNEL], b[CONF_DEVICE_INDEX])
-        await binary_sensor_ns.register_binary_sensor(bs, b)
+    # Create binary sensors (if available)
+    if HAVE_BINARY_SENSOR:
+        for sensor_conf in config.get(CONF_BINARY_SENSORS, []):
+            sensor = cg.new_Pvariable(
+                sensor_conf[CONF_ID],
+                comp,
+                sensor_conf[CONF_CHANNEL],
+                sensor_conf[CONF_DEVICE_INDEX],
+            )
+            cg.add(sensor.set_inverted(sensor_conf[CONF_INVERTED]))
+            await binary_sensor_ns.register_binary_sensor(sensor, sensor_conf)
